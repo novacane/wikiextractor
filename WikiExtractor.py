@@ -17,7 +17,7 @@
 #   orangain (orangain@gmail.com)
 #   Seth Cleveland (scleveland@turnitin.com)
 #   Bren Barn
-#
+#   Breath
 # =============================================================================
 #  Copyright (c) 2011-2017. Giuseppe Attardi (attardi@di.unipi.it).
 # =============================================================================
@@ -67,6 +67,7 @@ import os.path
 import re  # TODO use regex when it will be standard
 import time
 import json
+import xml.etree.ElementTree as ET
 from io import StringIO
 from multiprocessing import Queue, Process, Value, cpu_count
 from timeit import default_timer
@@ -555,18 +556,19 @@ class Extractor(object):
             if options.print_revision:
                 json_data['revid'] = self.revid
             # We don't use json.dump(data, out) because we want to be
-            # able to encode the string if the output is sys.stdout
+            # able to encode the string if the output is sys.stdout1
             out_str = json.dumps(json_data, ensure_ascii=False)
             if out == sys.stdout:   # option -a or -o -
                 out_str = out_str.encode('utf-8')
             out.write(out_str)
             out.write('\n')
         else:
+            #Solr uri
             if options.print_revision:
                 header = '<doc id="%s" revid="%s" url="%s" title="%s">\n' % (self.id, self.revid, url, self.title)
             else:
-                header = '<doc id="%s" url="%s" title="%s">\n' % (self.id, url, self.title)
-            footer = "\n</doc>\n"
+                header ="<page><id>{}</id><url>{}</url><title>{}</title><text>".format(self.id, url, self.title)
+            footer = "\n</text></page>\n"
             if out == sys.stdout:   # option -a or -o -
                 header = header.encode('utf-8')
             out.write(header)
@@ -791,6 +793,7 @@ class Extractor(object):
             text = text.replace('|', '')
         if options.toHTML:
             text = cgi.escape(text)
+        text = text.replace('<!--', '')
         return text
 
 
@@ -2672,7 +2675,7 @@ class NextFile(object):
         return os.path.join(self.path_name, '%c%c' % (ord('A') + char2, ord('A') + char1))
 
     def _filepath(self):
-        return '%s/wiki_%02d' % (self._dirname(), self.file_index)
+        return '%s/wiki_%02d' % (self._dirname(), self.file_index) + ".xml"
 
 
 class OutputSplitter(object):
@@ -2702,13 +2705,16 @@ class OutputSplitter(object):
         self.file.write(data)
 
     def close(self):
+        self.file.write('</wikipedia>'.encode('utf-8'))
         self.file.close()
 
     def open(self, filename):
         if self.compress:
             return bz2.BZ2File(filename + '.bz2', 'w')
         else:
-            return open(filename, 'wb')
+            file = open(filename, 'wb')
+            file.write('<wikipedia>')
+            return file
 
 
 # ----------------------------------------------------------------------
@@ -3044,6 +3050,7 @@ def reduce_process(opts, output_queue, spool_length,
     # FIXME: use a heap
     spool = {}        # collected pages
     next_page = 0     # sequence numbering of page
+   
     while True:
         if next_page in spool:
             output.write(spool.pop(next_page).encode('utf-8'))
