@@ -567,12 +567,17 @@ class Extractor(object):
             if options.print_revision:
                 header = '<doc id="%s" revid="%s" url="%s" title="%s">\n' % (self.id, self.revid, url, self.title)
             else:
+                # ET.Elemen
                 header ="<page><id>{}</id><url>{}</url><title>{}</title><text>".format(self.id, url, self.title)
             footer = "\n</text></page>\n"
             if out == sys.stdout:   # option -a or -o -
                 header = header.encode('utf-8')
             out.write(header)
             for line in text:
+                line = line.replace("&", "")
+                line = line.replace("<small>", "")
+                line = line.replace("</sub>", "")
+                line = line.replace("<", "").replace(">", "")
                 if out == sys.stdout:   # option -a or -o -
                     line = line.encode('utf-8')
                 out.write(line)
